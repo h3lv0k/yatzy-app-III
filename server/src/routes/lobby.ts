@@ -60,24 +60,25 @@ async function cleanupStaleLobbies(playerId: number): Promise<void> {
     const isExpired = expiresAt < now;
 
     if (isExpired) {
-      // Expire the lobby and remove player
+      // Expire the lobby and remove ALL players (not just this one)
       await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
-      await supabase.from('lobby_players').delete()
-        .eq('lobby_id', lobby.id).eq('player_id', playerId);
+      await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
       continue;
     }
 
     if (lobby.status === 'waiting') {
-      // Check if lobby has been waiting too long without starting (stale)
+      const createdAt = new Date(lobby.created_at);
+      const ageMinutes = (now.getTime() - createdAt.getTime()) / 60000;
+
+      // Check if lobby has been waiting too long (> 15 min)
       const { count } = await supabase
         .from('lobby_players')
         .select('id', { count: 'exact', head: true })
         .eq('lobby_id', lobby.id);
 
-      // If player is alone in a waiting lobby, auto-leave and expire it
-      if ((count || 0) <= 1) {
-        await supabase.from('lobby_players').delete()
-          .eq('lobby_id', lobby.id).eq('player_id', playerId);
+      // Expire if player is alone, OR if lobby is stale (>15 min regardless of player count)
+      if ((count || 0) <= 1 || ageMinutes > 15) {
+        await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
         await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
       }
     }
@@ -453,17 +454,20 @@ router.post('/:code/leave', async (req: AuthenticatedRequest, res) => {
       // No players left — expire lobby
       await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
     } else if (lobby.host_id === user.id) {
-      // Host left — reassign new host and expire lobby if playing
-      await supabase
-        .from('lobbies')
-        .update({
-          host_id: remaining[0].player_id,
-          // Expire lobby if it was in active play (can't continue with 1 player)
-          status: lobby.status === 'playing' ? 'expired' : lobby.status,
-        })
-        .eq('id', lobby.id);
+      if (lobby.status === 'playing') {
+        // Host left during active game — expire and remove all remaining players
+        await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
+        await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
+      } else {
+        // Host left waiting lobby — reassign new host
+        await supabase
+          .from('lobbies')
+          .update({ host_id: remaining[0].player_id })
+          .eq('id', lobby.id);
+      }
     } else if (lobby.status === 'playing') {
-      // Non-host player left during active game — expire lobbies (game interrupted)
+      // Non-host player left during active game — expire and remove all remaining players
+      await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
       await supabase
         .from('lobbies')
         .update({ status: 'expired' })

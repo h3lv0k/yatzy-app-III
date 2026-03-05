@@ -12,6 +12,7 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lobbyCodeRef = useRef<string | null>(null);
 
   // Clear error after 4 seconds
   useEffect(() => {
@@ -20,6 +21,18 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  // Refresh lobby data from API (uses ref to avoid stale closure)
+  const refreshLobby = useCallback(async () => {
+    const code = lobbyCodeRef.current;
+    if (!code) return;
+    try {
+      const data = await apiCall<LobbyState>(`/api/lobby/${code}`);
+      setLobby(data);
+    } catch {
+      // Silently fail refresh
+    }
+  }, [apiCall]);
 
   // Subscribe to lobby realtime updates
   const subscribeLobby = useCallback((lobbyId: string) => {
@@ -41,26 +54,15 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'lobbies', filter: `id=eq.${lobbyId}` },
-        async (payload) => {
-          const updated = payload.new as Partial<LobbyState>;
-          setLobby((prev) => prev ? { ...prev, ...updated } : prev);
+        async () => {
+          // Full refetch to pick up game_id when status changes to 'playing'
+          await refreshLobby();
         }
       )
       .subscribe();
 
     channelRef.current = channel;
-  }, []);
-
-  // Refresh lobby data from API
-  const refreshLobby = useCallback(async () => {
-    if (!lobby?.code) return;
-    try {
-      const data = await apiCall<LobbyState>(`/api/lobby/${lobby.code}`);
-      setLobby(data);
-    } catch {
-      // Silently fail refresh
-    }
-  }, [lobby?.code, apiCall]);
+  }, [refreshLobby]);
 
   // Create lobby
   const createLobby = useCallback(async () => {
@@ -74,6 +76,7 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
 
       const data = await apiCall<LobbyState>(`/api/lobby/${result.code}`);
       setLobby(data);
+      lobbyCodeRef.current = data.code;
       subscribeLobby(data.id);
       return data;
     } catch (err: any) {
@@ -96,6 +99,7 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
 
       const data = await apiCall<LobbyState>(`/api/lobby/${code}`);
       setLobby(data);
+      lobbyCodeRef.current = data.code;
       subscribeLobby(data.id);
       return data;
     } catch (err: any) {
@@ -149,6 +153,7 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
+    lobbyCodeRef.current = null;
     setLobby(null);
   }, [lobby?.code, apiCall]);
 
