@@ -23,6 +23,8 @@ export interface DbPlayer {
   first_name: string;
   last_name: string | null;
   photo_url: string | null;
+  display_name: string | null;
+  avatar_emoji: string;
   total_games: number;
   wins: number;
   best_score: number;
@@ -93,6 +95,8 @@ export interface LeaderboardEntry {
   username: string | null;
   first_name: string;
   photo_url: string | null;
+  display_name: string | null;
+  avatar_emoji: string;
   best_score: number;
   wins: number;
   total_games: number;

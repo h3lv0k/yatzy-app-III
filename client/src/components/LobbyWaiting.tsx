@@ -10,6 +10,8 @@ interface LobbyWaitingProps {
   onToggleReady: (ready: boolean) => void;
   onStartGame: () => void;
   onLeaveLobby: () => void;
+  onShareInvite: () => void;
+  inviteLink: string;
   error: string | null;
 }
 
@@ -21,6 +23,8 @@ export function LobbyWaiting({
   onToggleReady,
   onStartGame,
   onLeaveLobby,
+  onShareInvite,
+  inviteLink,
   error,
 }: LobbyWaitingProps) {
   const [copied, setCopied] = useState(false);
@@ -79,9 +83,34 @@ export function LobbyWaiting({
             </button>
           </div>
           {lobby.players.length < 2 && (
-            <p className="text-white/40 text-xs mt-2">
-              Отправьте код другу для присоединения
-            </p>
+            <div className="mt-3 space-y-2">
+              <p className="text-white/40 text-xs">
+                Отправьте ссылку другу для присоединения
+              </p>
+              <button
+                onClick={onShareInvite}
+                className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-2"
+              >
+                <span>📤</span> Пригласить друга
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(inviteLink);
+                  } catch {
+                    const input = document.createElement('input');
+                    input.value = inviteLink;
+                    document.body.appendChild(input);
+                    input.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(input);
+                  }
+                }}
+                className="w-full text-white/40 hover:text-white/60 text-xs transition-colors underline"
+              >
+                Скопировать ссылку
+              </button>
+            </div>
           )}
         </div>
       </motion.div>
@@ -104,12 +133,12 @@ export function LobbyWaiting({
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
                   player ? 'bg-accent/20' : 'bg-white/5'
                 }`}>
-                  {player ? (player.players?.first_name?.[0] || '?') : '?'}
+                  {player ? (player.players?.avatar_emoji || '🎲') : '?'}
                 </div>
                 <div>
                   <p className={`font-medium ${player ? 'text-white' : 'text-white/30'}`}>
                     {player
-                      ? (player.players?.first_name || 'Игрок')
+                      ? (player.players?.display_name || player.players?.first_name || 'Игрок')
                       : 'Ожидание...'}
                   </p>
                   <p className="text-xs text-white/40">

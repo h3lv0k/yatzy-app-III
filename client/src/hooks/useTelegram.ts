@@ -41,6 +41,7 @@ declare global {
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || '';
 
 export function useTelegram() {
   const tg = window.Telegram?.WebApp;
@@ -98,6 +99,30 @@ export function useTelegram() {
     return data as T;
   }
 
+  /**
+   * Share an invite link for a lobby via Telegram's native share sheet.
+   */
+  function shareInviteLink(lobbyCode: string) {
+    const inviteLink = `https://t.me/${BOT_USERNAME}?start=lobby_${lobbyCode}`;
+    const text = `Давай сыграем в Yatzy! 🎲`;
+
+    if (tg) {
+      // Use Telegram's native share sheet
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(text)}`;
+      tg.openTelegramLink(shareUrl);
+    } else {
+      // Fallback: copy link to clipboard
+      navigator.clipboard.writeText(inviteLink).catch(() => {});
+    }
+  }
+
+  /**
+   * Build the invite link for a lobby (for manual copying).
+   */
+  function getInviteLink(lobbyCode: string): string {
+    return `https://t.me/${BOT_USERNAME}?start=lobby_${lobbyCode}`;
+  }
+
   return {
     tg,
     user,
@@ -106,5 +131,7 @@ export function useTelegram() {
     haptic,
     apiCall,
     isTelegram: !!tg,
+    shareInviteLink,
+    getInviteLink,
   };
 }

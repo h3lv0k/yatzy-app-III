@@ -12,7 +12,7 @@ import { Profile } from './components/Profile';
 import { AppScreen, ScoreCategory } from './types/game';
 
 function App() {
-  const { user, apiCall, haptic, startParam } = useTelegram();
+  const { user, apiCall, haptic, startParam, shareInviteLink, getInviteLink } = useTelegram();
   const userId = user?.id || 12345; // dev fallback
 
   const [screen, setScreen] = useState<AppScreen>('lobby');
@@ -148,6 +148,8 @@ function App() {
           onToggleReady={handleToggleReady}
           onStartGame={handleStartGame}
           onLeaveLobby={handleLeaveLobby}
+          onShareInvite={() => shareInviteLink(lobbyHook.lobby!.code)}
+          inviteLink={getInviteLink(lobbyHook.lobby!.code)}
           error={lobbyHook.error}
         />
       );
@@ -200,6 +202,7 @@ function App() {
           loading={profileHook.loading}
           error={profileHook.error}
           onFetchProfile={profileHook.fetchProfile}
+          onUpdateProfile={profileHook.updateProfile}
           onBack={() => setScreen('lobby')}
         />
       );

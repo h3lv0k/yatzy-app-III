@@ -33,10 +33,29 @@ export function useProfile({ apiCall }: UseProfileOptions) {
     }
   }, [apiCall]);
 
+  const updateProfile = useCallback(async (displayName: string, avatarEmoji: string) => {
+    setError(null);
+    try {
+      await apiCall<{ display_name: string; avatar_emoji: string }>('/api/profile/me', {
+        method: 'PATCH',
+        body: JSON.stringify({ display_name: displayName, avatar_emoji: avatarEmoji }),
+      });
+      // Update local profile state
+      setProfile((prev) =>
+        prev ? { ...prev, display_name: displayName, avatar_emoji: avatarEmoji } : prev
+      );
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    }
+  }, [apiCall]);
+
   return {
     profile,
+    setProfile,
     loading,
     error,
     fetchProfile,
+    updateProfile,
   };
 }

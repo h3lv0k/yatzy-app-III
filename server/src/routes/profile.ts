@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { updateProfileSchema } from '../validators/schemas';
 
 const router = Router();
 
@@ -54,6 +55,8 @@ router.get('/me', async (req: AuthenticatedRequest, res) => {
       first_name: player.first_name,
       last_name: player.last_name,
       photo_url: player.photo_url,
+      display_name: player.display_name || null,
+      avatar_emoji: player.avatar_emoji || '🎲',
       total_games: player.total_games,
       wins: player.wins,
       best_score: player.best_score,
@@ -68,6 +71,47 @@ router.get('/me', async (req: AuthenticatedRequest, res) => {
   } catch (err: any) {
     console.error('[GET /api/profile/me]', err);
     res.status(500).json({ error: 'Ошибка загрузки профиля' });
+  }
+});
+
+// ==========================================
+// PATCH /api/profile/me — Update display name & avatar emoji
+// ==========================================
+router.patch('/me', async (req: AuthenticatedRequest, res) => {
+  try {
+    const user = req.telegramUser!;
+    const parsed = updateProfileSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Неверные данные', details: parsed.error.flatten() });
+      return;
+    }
+
+    const { display_name, avatar_emoji } = parsed.data;
+
+    const { data: player, error: updateErr } = await supabase
+      .from('players')
+      .update({
+        display_name,
+        avatar_emoji,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (updateErr || !player) {
+      res.status(500).json({ error: 'Не удалось обновить профиль' });
+      return;
+    }
+
+    res.json({
+      display_name: player.display_name,
+      avatar_emoji: player.avatar_emoji,
+    });
+  } catch (err: any) {
+    console.error('[PATCH /api/profile/me]', err);
+    res.status(500).json({ error: 'Ошибка обновления профиля' });
   }
 });
 

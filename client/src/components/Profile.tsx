@@ -1,16 +1,21 @@
-import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ProfileData } from '../types/game';
+import { ProfileEdit } from './ProfileEdit';
 
 interface ProfileProps {
   profile: ProfileData | null;
   loading: boolean;
   error: string | null;
   onFetchProfile: () => void;
+  onUpdateProfile: (displayName: string, avatarEmoji: string) => Promise<void>;
   onBack: () => void;
 }
 
-export function Profile({ profile, loading, error, onFetchProfile, onBack }: ProfileProps) {
+export function Profile({ profile, loading, error, onFetchProfile, onUpdateProfile, onBack }: ProfileProps) {
+  const [showEdit, setShowEdit] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     onFetchProfile();
   }, []);
@@ -34,11 +39,22 @@ export function Profile({ profile, loading, error, onFetchProfile, onBack }: Pro
   }
 
   const losses = profile.total_games - profile.wins;
+  const displayName = profile.display_name || profile.first_name;
+
+  const handleSave = async (name: string, emoji: string) => {
+    setSaving(true);
+    try {
+      await onUpdateProfile(name, emoji);
+      setShowEdit(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="gradient-bg min-h-screen px-4 py-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}
           className="text-white/50 hover:text-white transition-colors"
@@ -46,6 +62,13 @@ export function Profile({ profile, loading, error, onFetchProfile, onBack }: Pro
           ← Назад
         </button>
         <h1 className="text-xl font-bold text-accent">Профиль</h1>
+        <button
+          onClick={() => setShowEdit(true)}
+          className="text-white/50 hover:text-white transition-colors text-lg"
+          title="Редактировать"
+        >
+          ✏️
+        </button>
       </div>
 
       {/* Avatar & Name */}
@@ -54,21 +77,15 @@ export function Profile({ profile, loading, error, onFetchProfile, onBack }: Pro
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center mb-6"
       >
-        <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center text-3xl mb-3 border-2 border-accent/40">
-          {profile.photo_url ? (
-            <img
-              src={profile.photo_url}
-              alt={profile.first_name}
-              className="w-full h-full rounded-full object-cover"
-            />
-          ) : (
-            '👤'
-          )}
+        <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center text-5xl mb-3 border-2 border-accent/40">
+          {profile.avatar_emoji || '🎲'}
         </div>
-        <h2 className="text-xl font-bold text-white">
-          {profile.first_name}
-          {profile.last_name ? ` ${profile.last_name}` : ''}
-        </h2>
+        <h2 className="text-xl font-bold text-white">{displayName}</h2>
+        {profile.display_name && (
+          <p className="text-white/30 text-xs mt-0.5">
+            {profile.first_name}{profile.last_name ? ` ${profile.last_name}` : ''}
+          </p>
+        )}
         {profile.username && (
           <p className="text-white/40 text-sm">@{profile.username}</p>
         )}
@@ -166,6 +183,19 @@ export function Profile({ profile, loading, error, onFetchProfile, onBack }: Pro
           day: 'numeric',
         })}
       </motion.p>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {showEdit && (
+          <ProfileEdit
+            displayName={profile.display_name || profile.first_name}
+            avatarEmoji={profile.avatar_emoji || '🎲'}
+            onSave={handleSave}
+            onCancel={() => setShowEdit(false)}
+            saving={saving}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

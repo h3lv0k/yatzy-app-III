@@ -65,7 +65,7 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
                 </div>
                 <div>
                   <p className="font-medium text-sm text-white">
-                    {entry.first_name}
+                    {entry.display_name || entry.first_name}
                     {entry.username && (
                       <span className="text-white/30 ml-1 text-xs">@{entry.username}</span>
                     )}

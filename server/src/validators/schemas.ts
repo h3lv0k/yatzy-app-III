@@ -16,3 +16,8 @@ export const holdDiceSchema = z.object({
 export const scoreCategorySchema = z.object({
   category: z.enum(SCORE_CATEGORIES as [ScoreCategory, ...ScoreCategory[]]),
 });
+
+export const updateProfileSchema = z.object({
+  display_name: z.string().min(1).max(20).trim(),
+  avatar_emoji: z.string().min(1).max(4),
+});
