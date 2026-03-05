@@ -39,8 +39,8 @@ async function ensurePlayer(req: AuthenticatedRequest) {
 /**
  * Clean up stale lobbies for a player:
  * - Expire lobbies past their expires_at
- * - Remove player from expired/finished lobbies
- * - Force-leave stale waiting lobbies (older than 15 min without 2nd player)
+ * - Force-remove player from any waiting lobby (they want a new one)
+ * - Clean up playing lobbies where the game is completed
  */
 async function cleanupStaleLobbies(playerId: number): Promise<void> {
   // 1. Find all active lobby_players for this user
@@ -60,27 +60,27 @@ async function cleanupStaleLobbies(playerId: number): Promise<void> {
     const isExpired = expiresAt < now;
 
     if (isExpired) {
-      // Expire the lobby and remove ALL players (not just this one)
+      // Expire the lobby and remove ALL players
       await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
       await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
       continue;
     }
 
     if (lobby.status === 'waiting') {
-      const createdAt = new Date(lobby.created_at);
-      const ageMinutes = (now.getTime() - createdAt.getTime()) / 60000;
+      // Player is trying to create/join a new lobby — force-leave the old waiting one
+      await supabase.from('lobby_players').delete()
+        .eq('lobby_id', lobby.id).eq('player_id', playerId);
 
-      // Check if lobby has been waiting too long (> 15 min)
+      // Check if anyone is left
       const { count } = await supabase
         .from('lobby_players')
         .select('id', { count: 'exact', head: true })
         .eq('lobby_id', lobby.id);
 
-      // Expire if player is alone, OR if lobby is stale (>15 min regardless of player count)
-      if ((count || 0) <= 1 || ageMinutes > 15) {
-        await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
+      if ((count || 0) === 0) {
         await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
       }
+      continue;
     }
 
     if (lobby.status === 'playing') {
@@ -95,8 +95,7 @@ async function cleanupStaleLobbies(playerId: number): Promise<void> {
 
       if (game?.status === 'completed') {
         await supabase.from('lobbies').update({ status: 'finished' }).eq('id', lobby.id);
-        await supabase.from('lobby_players').delete()
-          .eq('lobby_id', lobby.id).eq('player_id', playerId);
+        await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
       }
     }
   }
