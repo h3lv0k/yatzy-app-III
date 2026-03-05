@@ -112,17 +112,31 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
     // Auto-cleanup stale/expired lobbies before checking
     await cleanupStaleLobbies(user.id);
 
-    // Check if player is already in an active lobby
-    const { data: existingLp } = await supabase
+    // Force-remove player from ANY remaining lobby_players entries
+    // If they're creating a new lobby, they clearly want out of old ones
+    const { data: remainingLps } = await supabase
       .from('lobby_players')
-      .select('lobby_id, lobbies!inner(status)')
-      .eq('player_id', user.id)
-      .in('lobbies.status', ['waiting', 'playing'])
-      .limit(1);
+      .select('lobby_id')
+      .eq('player_id', user.id);
 
-    if (existingLp && existingLp.length > 0) {
-      res.status(400).json({ error: 'Вы уже находитесь в активном лобби' });
-      return;
+    if (remainingLps && remainingLps.length > 0) {
+      // Delete all lobby_player entries for this user
+      await supabase.from('lobby_players').delete().eq('player_id', user.id);
+
+      // Expire any lobbies that are now empty
+      for (const lp of remainingLps) {
+        const { count } = await supabase
+          .from('lobby_players')
+          .select('id', { count: 'exact', head: true })
+          .eq('lobby_id', lp.lobby_id);
+
+        if ((count || 0) === 0) {
+          await supabase.from('lobbies')
+            .update({ status: 'expired' })
+            .eq('id', lp.lobby_id)
+            .in('status', ['waiting', 'playing']);
+        }
+      }
     }
 
     const code = generateCode();
@@ -222,6 +236,30 @@ router.post('/:code/join', async (req: AuthenticatedRequest, res) => {
 
     // Auto-cleanup stale/expired lobbies before joining
     await cleanupStaleLobbies(user.id);
+
+    // Force-remove player from any other lobbies (they want to join a new one)
+    const { data: remainingLps } = await supabase
+      .from('lobby_players')
+      .select('lobby_id')
+      .eq('player_id', user.id);
+
+    if (remainingLps && remainingLps.length > 0) {
+      await supabase.from('lobby_players').delete().eq('player_id', user.id);
+
+      for (const lp of remainingLps) {
+        const { count } = await supabase
+          .from('lobby_players')
+          .select('id', { count: 'exact', head: true })
+          .eq('lobby_id', lp.lobby_id);
+
+        if ((count || 0) === 0) {
+          await supabase.from('lobbies')
+            .update({ status: 'expired' })
+            .eq('id', lp.lobby_id)
+            .in('status', ['waiting', 'playing']);
+        }
+      }
+    }
 
     const { data: lobby, error: lobbyErr } = await supabase
       .from('lobbies')
