@@ -3,35 +3,43 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const EMOJI_CATEGORIES = [
   {
-    label: '🎮 Игры',
+    label: 'Игры',
+    icon: '🎮',
     emojis: ['🎲', '🎯', '🏆', '🎮', '🕹️', '🎴', '🃏', '🎰', '🎳', '🎱', '⚡', '💥', '🔥', '💎', '⭐', '🌟'],
   },
   {
-    label: '� Лица',
-    emojis: ['😀', '😎', '🤩', '😈', '👿', '🤯', '🥶', '🥵', '😤', '🤬', '😱', '🤪', '🥸', '🤓', '😏', '😴', '🤑', '😇', '🥹', '😡', '🤠', '🥳', '😤', '😭', '😂', '🤣', '😆', '😋', '🤤', '🫠'],
+    label: 'Лица',
+    icon: '😄',
+    emojis: ['😀', '😎', '🤩', '😈', '👿', '🤯', '🥶', '🥵', '😤', '🤬', '😱', '🤪', '🥸', '🤓', '😏', '😴', '🤑', '😇', '🥹', '😡', '🤠', '🥳', '🫣', '😭', '😂', '🤣', '😆', '😋', '🤤', '🫠'],
   },
   {
-    label: '❤️ Сердца',
-    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💗', '💓', '💞', '💕', '💖', '💝', '💘', '💟', '❣️', '💔', '🔥', '✨', '💫', '⭐', '🌟', '💎', '👑', '🌹', '🌸', '🌺', '🏹'],
+    label: 'Сердца',
+    icon: '❤️',
+    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💗', '💓', '💞', '💕', '💖', '💝', '💘', '💟', '❣️', '💔', '👑', '🌹', '🏹', '💍', '🎀', '🫶', '💌', '🩷', '🩵', '🩶', '♥️'],
   },
   {
-    label: '�🐾 Звери',
+    label: 'Звери',
+    icon: '🐾',
     emojis: ['🐶', '🐱', '🐼', '🦊', '🐸', '🦄', '🐻', '🐯', '🦁', '🐨', '🐰', '🐷', '🐺', '🦝', '🐗', '🦓', '🦒', '🐘', '🦏', '🐊'],
   },
   {
-    label: '🌿 Природа',
-    emojis: ['🌈', '🍀', '🌸', '🌺', '🌻', '🍁', '🌊', '🌙', '☀️', '❄️', '🌋', '🏔️', '🌴', '🍄', '🌵', '⚡'],
+    label: 'Природа',
+    icon: '🌿',
+    emojis: ['🌈', '🍀', '🌸', '🌺', '🌻', '🍁', '🌊', '🌙', '☀️', '❄️', '🌋', '🏔️', '🌴', '🍄', '🌵', '🪷'],
   },
   {
-    label: '👾 Персонажи',
+    label: 'Персонажи',
+    icon: '👾',
     emojis: ['👾', '🤖', '👻', '🎃', '🧙', '🧝', '🧛', '🧟', '🦸', '🦹', '🧜', '🧚', '👽', '🤡', '💀', '☠️'],
   },
   {
-    label: '🚀 Космос',
-    emojis: ['🚀', '🛸', '🌍', '🪐', '🌠', '☄️', '🛰️', '🔭', '🌌', '👨‍🚀', '🌑', '💫', '✨', '🌟', '⚡', '🪨'],
+    label: 'Космос',
+    icon: '🚀',
+    emojis: ['🚀', '🛸', '🌍', '🪐', '🌠', '☄️', '🛰️', '🔭', '🌌', '👨‍🚀', '🌑', '💫', '✨', '🪨', '🌕', '🌓'],
   },
   {
-    label: '🍕 Еда',
+    label: 'Еда',
+    icon: '🍕',
     emojis: ['🍕', '🍔', '🌮', '🍜', '🍣', '🍩', '🍦', '🎂', '🍓', '🍉', '🍋', '🥑', '🌶️', '🧁', '🍪', '🥐'],
   },
 ];
@@ -129,7 +137,7 @@ export function ProfileEdit({
                 style={{ transformOrigin: 'top' }}
                 className="mt-2 bg-[#12122a] border border-white/10 rounded-xl overflow-hidden"
               >
-                {/* Category tabs — scrollable horizontally */}
+                {/* Category tabs */}
                 <div className="flex overflow-x-auto scrollbar-none border-b border-white/10 px-2 pt-2 gap-1">
                   {EMOJI_CATEGORIES.map((cat, i) => (
                     <button
@@ -141,16 +149,16 @@ export function ProfileEdit({
                           : 'text-white/40 hover:text-white/60'
                       }`}
                     >
-                      {cat.label}
+                      {cat.icon} {cat.label}
                     </button>
                   ))}
                 </div>
 
                 {/* Emoji grid */}
                 <div className="p-3 grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto">
-                  {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji) => (
+                  {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji, idx) => (
                     <button
-                      key={emoji}
+                      key={`${activeCategory}-${idx}`}
                       onClick={() => {
                         setNewEmoji(emoji);
                         setPickerOpen(false);
