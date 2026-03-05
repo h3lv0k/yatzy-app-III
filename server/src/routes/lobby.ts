@@ -382,10 +382,20 @@ router.post('/:code/leave', async (req: AuthenticatedRequest, res) => {
       // No players left — expire lobby
       await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
     } else if (lobby.host_id === user.id) {
-      // Host left — reassign
+      // Host left — reassign new host and expire lobby if playing
       await supabase
         .from('lobbies')
-        .update({ host_id: remaining[0].player_id })
+        .update({
+          host_id: remaining[0].player_id,
+          // Expire lobby if it was in active play (can't continue with 1 player)
+          status: lobby.status === 'playing' ? 'expired' : lobby.status,
+        })
+        .eq('id', lobby.id);
+    } else if (lobby.status === 'playing') {
+      // Non-host player left during active game — expire lobbies (game interrupted)
+      await supabase
+        .from('lobbies')
+        .update({ status: 'expired' })
         .eq('id', lobby.id);
     }
 
