@@ -36,6 +36,71 @@ async function ensurePlayer(req: AuthenticatedRequest) {
   if (error) throw new Error(`Failed to upsert player: ${error.message}`);
 }
 
+/**
+ * Clean up stale lobbies for a player:
+ * - Expire lobbies past their expires_at
+ * - Remove player from expired/finished lobbies
+ * - Force-leave stale waiting lobbies (older than 15 min without 2nd player)
+ */
+async function cleanupStaleLobbies(playerId: number): Promise<void> {
+  // 1. Find all active lobby_players for this user
+  const { data: activeLps } = await supabase
+    .from('lobby_players')
+    .select('lobby_id, lobbies!inner(id, status, expires_at, created_at)')
+    .eq('player_id', playerId)
+    .in('lobbies.status', ['waiting', 'playing']);
+
+  if (!activeLps || activeLps.length === 0) return;
+
+  const now = new Date();
+
+  for (const lp of activeLps) {
+    const lobby = lp.lobbies as any;
+    const expiresAt = new Date(lobby.expires_at);
+    const isExpired = expiresAt < now;
+
+    if (isExpired) {
+      // Expire the lobby and remove player
+      await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
+      await supabase.from('lobby_players').delete()
+        .eq('lobby_id', lobby.id).eq('player_id', playerId);
+      continue;
+    }
+
+    if (lobby.status === 'waiting') {
+      // Check if lobby has been waiting too long without starting (stale)
+      const { count } = await supabase
+        .from('lobby_players')
+        .select('id', { count: 'exact', head: true })
+        .eq('lobby_id', lobby.id);
+
+      // If player is alone in a waiting lobby, auto-leave and expire it
+      if ((count || 0) <= 1) {
+        await supabase.from('lobby_players').delete()
+          .eq('lobby_id', lobby.id).eq('player_id', playerId);
+        await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
+      }
+    }
+
+    if (lobby.status === 'playing') {
+      // Check if the game is actually completed but lobby wasn't updated
+      const { data: game } = await supabase
+        .from('games')
+        .select('status')
+        .eq('lobby_id', lobby.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (game?.status === 'completed') {
+        await supabase.from('lobbies').update({ status: 'finished' }).eq('id', lobby.id);
+        await supabase.from('lobby_players').delete()
+          .eq('lobby_id', lobby.id).eq('player_id', playerId);
+      }
+    }
+  }
+}
+
 // ==========================================
 // POST /api/lobby — Create lobby
 // ==========================================
@@ -43,6 +108,9 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.telegramUser!;
     await ensurePlayer(req);
+
+    // Auto-cleanup stale/expired lobbies before checking
+    await cleanupStaleLobbies(user.id);
 
     // Check if player is already in an active lobby
     const { data: existingLp } = await supabase
@@ -151,6 +219,9 @@ router.post('/:code/join', async (req: AuthenticatedRequest, res) => {
     const { code } = joinLobbySchema.parse({ code: req.params.code });
 
     await ensurePlayer(req);
+
+    // Auto-cleanup stale/expired lobbies before joining
+    await cleanupStaleLobbies(user.id);
 
     const { data: lobby, error: lobbyErr } = await supabase
       .from('lobbies')
