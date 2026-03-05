@@ -64,6 +64,7 @@ export interface PlayerInfo {
   wins: number;
   best_score: number;
   total_yatzy_count: number;
+  total_upper_bonus_count: number;
 }
 
 export interface LobbyPlayer {
@@ -128,4 +129,31 @@ export interface LeaderboardEntry {
   rank: number;
 }
 
-export type AppScreen = 'lobby' | 'waiting' | 'game' | 'gameover' | 'leaderboard';
+export type AppScreen = 'lobby' | 'waiting' | 'game' | 'gameover' | 'leaderboard' | 'profile';
+
+export interface RecentGameResult {
+  game_id: string;
+  total_score: number;
+  upper_section_score: number;
+  upper_bonus: boolean;
+  bonus_score: number;
+  placement: number;
+}
+
+export interface ProfileData {
+  id: number;
+  username: string | null;
+  first_name: string;
+  last_name: string | null;
+  photo_url: string | null;
+  total_games: number;
+  wins: number;
+  best_score: number;
+  total_yatzy_count: number;
+  total_upper_bonus_count: number;
+  avg_score: number;
+  win_rate: number;
+  rank: number | null;
+  recent_games: RecentGameResult[];
+  created_at: string;
+}

@@ -2,11 +2,13 @@ import { useState, useCallback, useEffect } from 'react';
 import { useTelegram } from './hooks/useTelegram';
 import { useLobby } from './hooks/useLobby';
 import { useGame } from './hooks/useGame';
+import { useProfile } from './hooks/useProfile';
 import { Lobby } from './components/Lobby';
 import { LobbyWaiting } from './components/LobbyWaiting';
 import { GameBoard } from './components/GameBoard';
 import { GameOver } from './components/GameOver';
 import { Leaderboard } from './components/Leaderboard';
+import { Profile } from './components/Profile';
 import { AppScreen, ScoreCategory } from './types/game';
 
 function App() {
@@ -18,6 +20,7 @@ function App() {
 
   const lobbyHook = useLobby({ apiCall, userId });
   const gameHook = useGame({ apiCall, userId, gameId });
+  const profileHook = useProfile({ apiCall });
 
   // Handle deep link from Telegram bot (?lobby=CODE or /start lobby_CODE)
   useEffect(() => {
@@ -127,6 +130,7 @@ function App() {
           onCreateLobby={handleCreateLobby}
           onJoinLobby={handleJoinLobby}
           onShowLeaderboard={() => setScreen('leaderboard')}
+          onShowProfile={() => setScreen('profile')}
           loading={lobbyHook.loading}
           error={lobbyHook.error}
           initialCode={startParam?.startsWith('lobby_') ? startParam.replace('lobby_', '') : null}
@@ -187,6 +191,17 @@ function App() {
     case 'leaderboard':
       return (
         <Leaderboard onBack={() => setScreen('lobby')} />
+      );
+
+    case 'profile':
+      return (
+        <Profile
+          profile={profileHook.profile}
+          loading={profileHook.loading}
+          error={profileHook.error}
+          onFetchProfile={profileHook.fetchProfile}
+          onBack={() => setScreen('lobby')}
+        />
       );
 
     default:

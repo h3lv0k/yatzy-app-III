@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { GameState } from '../types/game';
-import { computeTotalScore } from '../utils/yatzy';
+import { computeTotalScore, computeUpperTotal } from '../utils/yatzy';
 
 interface GameOverProps {
   game: GameState;
@@ -29,9 +29,14 @@ export function GameOver({ game, myId, onRematch, onLeaveLobby }: GameOverProps)
       .filter((s) => s.player_id === p.player_id)
       .forEach((s) => { scoreMap[s.category] = s.value; });
     const total = computeTotalScore(scoreMap);
+    const upperTotal = computeUpperTotal(scoreMap);
+    const hasBonus = upperTotal >= 63;
     return {
       ...p,
       total,
+      upperTotal,
+      hasBonus,
+      bonusScore: hasBonus ? 35 : 0,
       isWinner: p.player_id === game.winner_id,
       isMe: p.player_id === myId,
     };
@@ -119,6 +124,12 @@ export function GameOver({ game, myId, onRematch, onLeaveLobby }: GameOverProps)
                 </p>
                 <p className="text-xs text-white/40">
                   {p.isWinner ? 'Победитель' : '2-е место'}
+                  {p.hasBonus && (
+                    <span className="text-accent ml-1">• Бонус +35</span>
+                  )}
+                </p>
+                <p className="text-[10px] text-white/30">
+                  Верх: {p.upperTotal}/63
                 </p>
               </div>
             </div>

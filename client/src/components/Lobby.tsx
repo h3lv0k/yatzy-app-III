@@ -5,12 +5,13 @@ interface LobbyProps {
   onCreateLobby: () => Promise<void>;
   onJoinLobby: (code: string) => Promise<void>;
   onShowLeaderboard: () => void;
+  onShowProfile: () => void;
   loading: boolean;
   error: string | null;
   initialCode?: string | null;
 }
 
-export function Lobby({ onCreateLobby, onJoinLobby, onShowLeaderboard, loading, error, initialCode }: LobbyProps) {
+export function Lobby({ onCreateLobby, onJoinLobby, onShowLeaderboard, onShowProfile, loading, error, initialCode }: LobbyProps) {
   const [code, setCode] = useState(initialCode || '');
   const [tab, setTab] = useState<'create' | 'join'>(initialCode ? 'join' : 'create');
 
@@ -123,6 +124,16 @@ export function Lobby({ onCreateLobby, onJoinLobby, onShowLeaderboard, loading, 
         onClick={onShowLeaderboard}
       >
         Таблица лидеров
+      </motion.button>
+
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className="mt-3 text-white/40 hover:text-accent text-sm transition-colors"
+        onClick={onShowProfile}
+      >
+        👤 Мой профиль
       </motion.button>
     </div>
   );

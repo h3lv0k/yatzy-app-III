@@ -5,6 +5,7 @@ import { verifyTelegramAuth } from './middleware/auth';
 import lobbyRoutes from './routes/lobby';
 import gameRoutes from './routes/game';
 import leaderboardRoutes from './routes/leaderboard';
+import profileRoutes from './routes/profile';
 import { getWebhookCallback } from './bot/index';
 import { recoverTimers } from './services/turnTimer';
 
@@ -28,6 +29,7 @@ if (webhookHandler) {
 // API routes (require Telegram auth)
 app.use('/api/lobby', verifyTelegramAuth, lobbyRoutes);
 app.use('/api/game', verifyTelegramAuth, gameRoutes);
+app.use('/api/profile', verifyTelegramAuth, profileRoutes);
 app.use('/api/leaderboard', leaderboardRoutes); // public
 
 const PORT = process.env.PORT || 3001;

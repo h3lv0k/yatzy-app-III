@@ -292,29 +292,36 @@ router.post('/:id/score', async (req: AuthenticatedRequest, res) => {
         completed_at: new Date().toISOString(),
       }).eq('id', gameId);
 
-      // Record results
+      // Record results (including bonus_score)
+      const p1UpperTotal = computeUpperTotal(p1ScoreMap);
+      const p2UpperTotal = computeUpperTotal(p2ScoreMap);
+      const p1HasBonus = p1UpperTotal >= 63;
+      const p2HasBonus = p2UpperTotal >= 63;
+
       await supabase.from('game_results').insert([
         {
           game_id: gameId,
           player_id: player1Id,
           total_score: p1Total,
-          upper_section_score: computeUpperTotal(p1ScoreMap),
-          upper_bonus: computeUpperTotal(p1ScoreMap) >= 63,
+          upper_section_score: p1UpperTotal,
+          upper_bonus: p1HasBonus,
+          bonus_score: p1HasBonus ? 35 : 0,
           placement: winnerId === player1Id ? 1 : 2,
         },
         {
           game_id: gameId,
           player_id: player2Id,
           total_score: p2Total,
-          upper_section_score: computeUpperTotal(p2ScoreMap),
-          upper_bonus: computeUpperTotal(p2ScoreMap) >= 63,
+          upper_section_score: p2UpperTotal,
+          upper_bonus: p2HasBonus,
+          bonus_score: p2HasBonus ? 35 : 0,
           placement: winnerId === player2Id ? 1 : 2,
         },
       ]);
 
-      // Update player stats
-      await updatePlayerStats(player1Id, p1Total, p1ScoreMap, winnerId === player1Id);
-      await updatePlayerStats(player2Id, p2Total, p2ScoreMap, winnerId === player2Id);
+      // Update player stats (including upper bonus count)
+      await updatePlayerStats(player1Id, p1Total, p1ScoreMap, winnerId === player1Id, p1HasBonus);
+      await updatePlayerStats(player2Id, p2Total, p2ScoreMap, winnerId === player2Id, p2HasBonus);
 
       // Update lobby
       await supabase.from('lobbies').update({ status: 'finished' }).eq('id', game.lobby_id);
@@ -430,11 +437,12 @@ async function updatePlayerStats(
   playerId: number,
   totalScore: number,
   scoreMap: Record<string, number>,
-  isWinner: boolean
+  isWinner: boolean,
+  hasUpperBonus: boolean = false
 ): Promise<void> {
   const { data: player } = await supabase
     .from('players')
-    .select('total_games, wins, best_score, total_yatzy_count')
+    .select('total_games, wins, best_score, total_yatzy_count, total_upper_bonus_count')
     .eq('id', playerId)
     .single();
 
@@ -447,6 +455,7 @@ async function updatePlayerStats(
     wins: isWinner ? player.wins + 1 : player.wins,
     best_score: Math.max(player.best_score, totalScore),
     total_yatzy_count: player.total_yatzy_count + yatzyCount,
+    total_upper_bonus_count: (player.total_upper_bonus_count ?? 0) + (hasUpperBonus ? 1 : 0),
     updated_at: new Date().toISOString(),
   }).eq('id', playerId);
 }

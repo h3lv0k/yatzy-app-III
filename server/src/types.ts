@@ -27,6 +27,7 @@ export interface DbPlayer {
   wins: number;
   best_score: number;
   total_yatzy_count: number;
+  total_upper_bonus_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +84,7 @@ export interface DbGameResult {
   total_score: number;
   upper_section_score: number;
   upper_bonus: boolean;
+  bonus_score: number;
   placement: number;
 }
 
