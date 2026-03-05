@@ -87,6 +87,17 @@ export function useGame({ apiCall, userId, gameId }: UseGameOptions) {
     };
   }, [gameId, fetchGame, subscribeGame]);
 
+  // Polling fallback: refresh every 3s while game is active (realtime can miss events)
+  useEffect(() => {
+    if (!gameId || game?.status === 'completed') return;
+
+    const interval = setInterval(() => {
+      fetchGame(gameId);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [gameId, game?.status, fetchGame]);
+
   // Roll dice
   const rollDice = useCallback(async () => {
     if (!gameId || rolling) return;

@@ -157,6 +157,17 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
     setLobby(null);
   }, [lobby?.code, apiCall]);
 
+  // Polling fallback: refresh every 3s while in lobby (realtime can miss events)
+  useEffect(() => {
+    if (!lobby || lobby.status === 'finished' || lobby.status === 'expired') return;
+
+    const interval = setInterval(() => {
+      refreshLobby();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [lobby?.id, lobby?.status, refreshLobby]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
