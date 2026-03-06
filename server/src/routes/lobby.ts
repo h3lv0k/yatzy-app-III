@@ -37,68 +37,38 @@ async function ensurePlayer(req: AuthenticatedRequest) {
 }
 
 /**
- * Clean up stale lobbies for a player:
- * - Expire lobbies past their expires_at
- * - Force-remove player from any waiting lobby (they want a new one)
- * - Clean up playing lobbies where the game is completed
+ * Fast cleanup: remove player from all lobby_players in one query.
+ * No complex joins, no loops — just 1-2 queries max.
  */
-async function cleanupStaleLobbies(playerId: number): Promise<void> {
-  // 1. Find all active lobby_players for this user
-  const { data: activeLps } = await supabase
+async function forceLeaveAllLobbies(playerId: number): Promise<void> {
+  // 1. Get lobby IDs the player is in
+  const { data: lps } = await supabase
     .from('lobby_players')
-    .select('lobby_id, lobbies!inner(id, status, expires_at, created_at)')
-    .eq('player_id', playerId)
-    .in('lobbies.status', ['waiting', 'playing']);
+    .select('lobby_id')
+    .eq('player_id', playerId);
 
-  if (!activeLps || activeLps.length === 0) return;
+  if (!lps || lps.length === 0) return;
 
-  const now = new Date();
+  // 2. Delete all lobby_player entries for this player in one query
+  await supabase.from('lobby_players').delete().eq('player_id', playerId);
 
-  for (const lp of activeLps) {
-    const lobby = lp.lobbies as any;
-    const expiresAt = new Date(lobby.expires_at);
-    const isExpired = expiresAt < now;
-
-    if (isExpired) {
-      // Expire the lobby and remove ALL players
-      await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
-      await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
-      continue;
-    }
-
-    if (lobby.status === 'waiting') {
-      // Player is trying to create/join a new lobby — force-leave the old waiting one
-      await supabase.from('lobby_players').delete()
-        .eq('lobby_id', lobby.id).eq('player_id', playerId);
-
-      // Check if anyone is left
+  // 3. Expire now-empty lobbies (parallel)
+  const lobbyIds = lps.map((lp) => lp.lobby_id);
+  await Promise.all(
+    lobbyIds.map(async (lobbyId) => {
       const { count } = await supabase
         .from('lobby_players')
         .select('id', { count: 'exact', head: true })
-        .eq('lobby_id', lobby.id);
+        .eq('lobby_id', lobbyId);
 
       if ((count || 0) === 0) {
-        await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
+        await supabase.from('lobbies')
+          .update({ status: 'expired' })
+          .eq('id', lobbyId)
+          .in('status', ['waiting', 'playing']);
       }
-      continue;
-    }
-
-    if (lobby.status === 'playing') {
-      // Check if the game is actually completed but lobby wasn't updated
-      const { data: game } = await supabase
-        .from('games')
-        .select('status')
-        .eq('lobby_id', lobby.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (game?.status === 'completed') {
-        await supabase.from('lobbies').update({ status: 'finished' }).eq('id', lobby.id);
-        await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
-      }
-    }
-  }
+    })
+  );
 }
 
 // ==========================================
@@ -109,35 +79,8 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
     const user = req.telegramUser!;
     await ensurePlayer(req);
 
-    // Auto-cleanup stale/expired lobbies before checking
-    await cleanupStaleLobbies(user.id);
-
-    // Force-remove player from ANY remaining lobby_players entries
-    // If they're creating a new lobby, they clearly want out of old ones
-    const { data: remainingLps } = await supabase
-      .from('lobby_players')
-      .select('lobby_id')
-      .eq('player_id', user.id);
-
-    if (remainingLps && remainingLps.length > 0) {
-      // Delete all lobby_player entries for this user
-      await supabase.from('lobby_players').delete().eq('player_id', user.id);
-
-      // Expire any lobbies that are now empty
-      for (const lp of remainingLps) {
-        const { count } = await supabase
-          .from('lobby_players')
-          .select('id', { count: 'exact', head: true })
-          .eq('lobby_id', lp.lobby_id);
-
-        if ((count || 0) === 0) {
-          await supabase.from('lobbies')
-            .update({ status: 'expired' })
-            .eq('id', lp.lobby_id)
-            .in('status', ['waiting', 'playing']);
-        }
-      }
-    }
+    // Force-leave all old lobbies (fast: 2-3 queries max)
+    await forceLeaveAllLobbies(user.id);
 
     const code = generateCode();
 
@@ -234,32 +177,8 @@ router.post('/:code/join', async (req: AuthenticatedRequest, res) => {
 
     await ensurePlayer(req);
 
-    // Auto-cleanup stale/expired lobbies before joining
-    await cleanupStaleLobbies(user.id);
-
-    // Force-remove player from any other lobbies (they want to join a new one)
-    const { data: remainingLps } = await supabase
-      .from('lobby_players')
-      .select('lobby_id')
-      .eq('player_id', user.id);
-
-    if (remainingLps && remainingLps.length > 0) {
-      await supabase.from('lobby_players').delete().eq('player_id', user.id);
-
-      for (const lp of remainingLps) {
-        const { count } = await supabase
-          .from('lobby_players')
-          .select('id', { count: 'exact', head: true })
-          .eq('lobby_id', lp.lobby_id);
-
-        if ((count || 0) === 0) {
-          await supabase.from('lobbies')
-            .update({ status: 'expired' })
-            .eq('id', lp.lobby_id)
-            .in('status', ['waiting', 'playing']);
-        }
-      }
-    }
+    // Force-leave all old lobbies (fast: 2-3 queries max)
+    await forceLeaveAllLobbies(user.id);
 
     const { data: lobby, error: lobbyErr } = await supabase
       .from('lobbies')
