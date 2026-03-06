@@ -103,7 +103,7 @@ export function useTelegram() {
    * Share an invite link for a lobby via Telegram's native share sheet.
    */
   function shareInviteLink(lobbyCode: string) {
-    const inviteLink = `https://t.me/${BOT_USERNAME}?start=lobby_${lobbyCode}`;
+    const inviteLink = `https://t.me/${BOT_USERNAME}?startapp=lobby_${lobbyCode}`;
     const text = `Давай сыграем в Yatzy! 🎲`;
 
     if (tg) {
@@ -120,7 +120,7 @@ export function useTelegram() {
    * Build the invite link for a lobby (for manual copying).
    */
   function getInviteLink(lobbyCode: string): string {
-    return `https://t.me/${BOT_USERNAME}?start=lobby_${lobbyCode}`;
+    return `https://t.me/${BOT_USERNAME}?startapp=lobby_${lobbyCode}`;
   }
 
   return {
