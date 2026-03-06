@@ -72,8 +72,8 @@ export function GameOver({ game, myId, onRematch, onLeaveLobby, opponentLeft = f
             top: -30,
             fontSize: p.size,
           }}
-          initial={{ y: -30, opacity: 1 }}
-          animate={{ y: '100vh', opacity: [1, 1, 0, 0] }}
+          initial={{ y: -30, opacity: 0 }}
+          animate={{ y: '60vh', opacity: [0, 1, 1, 0] }}
           transition={{
             duration: p.duration,
             delay: p.delay,
@@ -81,7 +81,7 @@ export function GameOver({ game, myId, onRematch, onLeaveLobby, opponentLeft = f
             repeat: Infinity,
             opacity: {
               duration: p.duration,
-              times: [0, 0.4, 0.6, 1],
+              times: [0, 0.05, 0.7, 1],
               ease: 'linear',
               repeat: Infinity,
               delay: p.delay,
