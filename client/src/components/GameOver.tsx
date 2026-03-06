@@ -72,12 +72,19 @@ export function GameOver({ game, myId, onRematch, onLeaveLobby }: GameOverProps)
             fontSize: p.size,
           }}
           initial={{ y: -30, opacity: 1 }}
-          animate={{ y: '100vh', opacity: 0 }}
+          animate={{ y: '100vh', opacity: [1, 1, 0] }}
           transition={{
             duration: p.duration,
             delay: p.delay,
             ease: 'linear',
             repeat: Infinity,
+            opacity: {
+              duration: p.duration,
+              times: [0, 0.7, 1],
+              ease: 'linear',
+              repeat: Infinity,
+              delay: p.delay,
+            },
           }}
         >
           {p.emoji}
