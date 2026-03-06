@@ -137,15 +137,27 @@ export function useGame({ apiCall, userId, gameId }: UseGameOptions) {
     if (!gameId) return;
     setError(null);
 
+    // Optimistic update FIRST — instant UI feedback
+    setGame((prev) => {
+      if (!prev) return prev;
+      const newHeld = [...prev.held_dice];
+      newHeld[index] = !newHeld[index];
+      return { ...prev, held_dice: newHeld };
+    });
+
     try {
-      const result = await apiCall<{ held_dice: boolean[] }>(`/api/game/${gameId}/hold`, {
+      await apiCall<{ held_dice: boolean[] }>(`/api/game/${gameId}/hold`, {
         method: 'POST',
         body: JSON.stringify({ index }),
       });
-
-      // Optimistic update
-      setGame((prev) => prev ? { ...prev, held_dice: result.held_dice } : prev);
     } catch (err: any) {
+      // Revert on error
+      setGame((prev) => {
+        if (!prev) return prev;
+        const reverted = [...prev.held_dice];
+        reverted[index] = !reverted[index];
+        return { ...prev, held_dice: reverted };
+      });
       setError(err.message);
     }
   }, [gameId, apiCall]);

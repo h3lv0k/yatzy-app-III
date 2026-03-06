@@ -30,7 +30,7 @@ export function Die({ value, held, canHold, onToggle, rolling }: DieProps) {
       transition={rolling ? { duration: 0.4, ease: 'easeOut' } : {}}
       className={`
         relative w-14 h-14 rounded-xl flex items-center justify-center
-        transition-all duration-150
+        transition-colors duration-100
         ${held
           ? 'bg-gradient-to-br from-accent to-accent-dim shadow-lg shadow-accent/30 ring-2 ring-accent/50'
           : value > 0
