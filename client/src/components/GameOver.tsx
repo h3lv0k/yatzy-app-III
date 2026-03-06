@@ -62,35 +62,35 @@ export function GameOver({ game, myId, onRematch, onLeaveLobby, opponentLeft = f
 
   return (
     <div className="gradient-bg flex flex-col items-center justify-center min-h-screen px-4 py-8 relative overflow-hidden">
-      {/* Particles */}
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute pointer-events-none"
-          style={{
-            left: `${p.x}%`,
-            top: -30,
-            fontSize: p.size,
-          }}
-          initial={{ y: -30, opacity: 0 }}
-          animate={{ y: '60vh', opacity: [0, 1, 1, 0] }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            ease: 'linear',
-            repeat: Infinity,
-            opacity: {
+      {/* Particles — masked so they fade at bottom */}
+      <div
+        className="absolute inset-0 pointer-events-none overflow-hidden"
+        style={{
+          maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 70%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 70%)',
+        }}
+      >
+        {particles.map((p) => (
+          <motion.div
+            key={p.id}
+            className="absolute"
+            style={{
+              left: `${p.x}%`,
+              top: -30,
+              fontSize: p.size,
+            }}
+            animate={{ y: ['-30px', '100vh'] }}
+            transition={{
               duration: p.duration,
-              times: [0, 0.05, 0.7, 1],
+              delay: p.delay,
               ease: 'linear',
               repeat: Infinity,
-              delay: p.delay,
-            },
-          }}
-        >
-          {p.emoji}
-        </motion.div>
-      ))}
+            }}
+          >
+            {p.emoji}
+          </motion.div>
+        ))}
+      </div>
 
       {/* Result */}
       <motion.div
