@@ -111,10 +111,9 @@ function App() {
 
   const handleRematch = useCallback(async () => {
     haptic.impactOccurred('heavy');
-    // Return to lobby waiting
     setGameId(null);
     gameHook.setGame(null);
-    if (lobbyHook.lobby) {
+    if (lobbyHook.lobby && lobbyHook.lobby.status === 'waiting') {
       await lobbyHook.refreshLobby();
       setScreen('waiting');
     } else {
