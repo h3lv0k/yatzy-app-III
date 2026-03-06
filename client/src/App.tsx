@@ -187,6 +187,7 @@ function App() {
           myId={userId}
           onRematch={handleRematch}
           onLeaveLobby={handleLeaveLobby}
+          opponentLeft={!lobbyHook.lobby || lobbyHook.lobby.players.length < 2}
         />
       );
 

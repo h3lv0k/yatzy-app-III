@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { joinLobbySchema, readySchema } from '../validators/schemas';
+import { clearTimer } from '../services/turnTimer';
 
 const router = Router();
 
@@ -404,24 +405,58 @@ router.post('/:code/leave', async (req: AuthenticatedRequest, res) => {
     if (!remaining || remaining.length === 0) {
       // No players left — expire lobby
       await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
-    } else if (lobby.host_id === user.id) {
-      if (lobby.status === 'playing') {
-        // Host left during active game — expire and remove all remaining players
-        await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
-        await supabase.from('lobbies').update({ status: 'expired' }).eq('id', lobby.id);
-      } else {
-        // Host left waiting lobby — reassign new host
-        await supabase
-          .from('lobbies')
-          .update({ host_id: remaining[0].player_id })
-          .eq('id', lobby.id);
-      }
     } else if (lobby.status === 'playing') {
-      // Non-host player left during active game — expire and remove all remaining players
-      await supabase.from('lobby_players').delete().eq('lobby_id', lobby.id);
+      // A player left during an active game — auto-complete, winner is the remaining player
+      const winnerId = remaining[0].player_id;
+
+      const { data: activeGame } = await supabase
+        .from('games')
+        .select('id')
+        .eq('lobby_id', lobby.id)
+        .eq('status', 'in_progress')
+        .single();
+
+      if (activeGame) {
+        clearTimer(activeGame.id);
+
+        await supabase.from('games').update({
+          status: 'completed',
+          winner_id: winnerId,
+          completed_at: new Date().toISOString(),
+        }).eq('id', activeGame.id);
+
+        // Update stats in parallel
+        const [leaverRes, winnerRes] = await Promise.all([
+          supabase.from('players').select('total_games').eq('id', user.id).single(),
+          supabase.from('players').select('total_games, wins').eq('id', winnerId).single(),
+        ]);
+        await Promise.all([
+          leaverRes.data
+            ? supabase.from('players').update({
+                total_games: leaverRes.data.total_games + 1,
+                updated_at: new Date().toISOString(),
+              }).eq('id', user.id)
+            : Promise.resolve(),
+          winnerRes.data
+            ? supabase.from('players').update({
+                total_games: winnerRes.data.total_games + 1,
+                wins: winnerRes.data.wins + 1,
+                updated_at: new Date().toISOString(),
+              }).eq('id', winnerId)
+            : Promise.resolve(),
+        ]);
+      }
+
+      // Remove all players and mark lobby finished
+      await Promise.all([
+        supabase.from('lobby_players').delete().eq('lobby_id', lobby.id),
+        supabase.from('lobbies').update({ status: 'finished' }).eq('id', lobby.id),
+      ]);
+    } else if (lobby.host_id === user.id) {
+      // Host left waiting lobby — reassign new host
       await supabase
         .from('lobbies')
-        .update({ status: 'expired' })
+        .update({ host_id: remaining[0].player_id })
         .eq('id', lobby.id);
     }
 

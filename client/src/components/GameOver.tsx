@@ -8,6 +8,7 @@ interface GameOverProps {
   myId: number;
   onRematch: () => void;
   onLeaveLobby: () => void;
+  opponentLeft?: boolean;
 }
 
 interface Particle {
@@ -19,7 +20,7 @@ interface Particle {
   size: number;
 }
 
-export function GameOver({ game, myId, onRematch, onLeaveLobby }: GameOverProps) {
+export function GameOver({ game, myId, onRematch, onLeaveLobby, opponentLeft = false }: GameOverProps) {
   const isWinner = game.winner_id === myId;
 
   // Build score maps
@@ -156,9 +157,15 @@ export function GameOver({ game, myId, onRematch, onLeaveLobby }: GameOverProps)
         transition={{ delay: 0.5 }}
         className="w-full max-w-sm space-y-3 z-10"
       >
-        <button className="btn-primary w-full text-lg" onClick={onRematch}>
-          Реванш
-        </button>
+        {opponentLeft ? (
+          <div className="text-center text-white/50 text-sm py-2">
+            Противник покинул игру
+          </div>
+        ) : (
+          <button className="btn-primary w-full text-lg" onClick={onRematch}>
+            Реванш
+          </button>
+        )}
         <button className="btn-secondary w-full" onClick={onLeaveLobby}>
           В лобби
         </button>
