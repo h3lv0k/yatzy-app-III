@@ -138,28 +138,23 @@ router.get('/:code', async (req: AuthenticatedRequest, res) => {
       return;
     }
 
-    const { data: players } = await supabase
+    // Fetch players and game_id in parallel
+    const playersPromise = supabase
       .from('lobby_players')
       .select('*, players(*)')
       .eq('lobby_id', lobby.id)
       .order('turn_order');
 
-    // Get game_id if status is playing
-    let gameId: string | null = null;
-    if (lobby.status === 'playing') {
-      const { data: game } = await supabase
-        .from('games')
-        .select('id')
-        .eq('lobby_id', lobby.id)
-        .eq('status', 'in_progress')
-        .single();
-      gameId = game?.id || null;
-    }
+    const gamePromise = lobby.status === 'playing'
+      ? supabase.from('games').select('id').eq('lobby_id', lobby.id).eq('status', 'in_progress').single()
+      : Promise.resolve({ data: null });
+
+    const [playersResult, gameResult] = await Promise.all([playersPromise, gamePromise]);
 
     res.json({
       ...lobby,
-      players: players || [],
-      game_id: gameId,
+      players: playersResult.data || [],
+      game_id: gameResult.data?.id || null,
     });
   } catch (err: any) {
     console.error('[GET /api/lobby/:code]', err);

@@ -13,6 +13,7 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lobbyCodeRef = useRef<string | null>(null);
+  const fetchingRef = useRef(false);
 
   // Clear error after 4 seconds
   useEffect(() => {
@@ -25,12 +26,15 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
   // Refresh lobby data from API (uses ref to avoid stale closure)
   const refreshLobby = useCallback(async () => {
     const code = lobbyCodeRef.current;
-    if (!code) return;
+    if (!code || fetchingRef.current) return;
+    fetchingRef.current = true;
     try {
       const data = await apiCall<LobbyState>(`/api/lobby/${code}`);
       setLobby(data);
     } catch {
       // Silently fail refresh
+    } finally {
+      fetchingRef.current = false;
     }
   }, [apiCall]);
 
@@ -163,7 +167,7 @@ export function useLobby({ apiCall, userId }: UseLobbyOptions) {
 
     const interval = setInterval(() => {
       refreshLobby();
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [lobby?.id, lobby?.status, refreshLobby]);

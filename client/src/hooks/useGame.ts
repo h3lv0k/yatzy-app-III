@@ -15,6 +15,7 @@ export function useGame({ apiCall, userId, gameId }: UseGameOptions) {
   const [rolling, setRolling] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const activeGameId = useRef<string | null>(null);
+  const fetchingRef = useRef(false);
 
   // Clear error after 4 seconds
   useEffect(() => {
@@ -26,6 +27,8 @@ export function useGame({ apiCall, userId, gameId }: UseGameOptions) {
 
   // Fetch full game state
   const fetchGame = useCallback(async (id: string) => {
+    if (fetchingRef.current) return null;
+    fetchingRef.current = true;
     try {
       const data = await apiCall<GameState>(`/api/game/${id}`);
       setGame(data);
@@ -33,6 +36,8 @@ export function useGame({ apiCall, userId, gameId }: UseGameOptions) {
     } catch (err: any) {
       setError(err.message);
       return null;
+    } finally {
+      fetchingRef.current = false;
     }
   }, [apiCall]);
 
@@ -93,7 +98,7 @@ export function useGame({ apiCall, userId, gameId }: UseGameOptions) {
 
     const interval = setInterval(() => {
       fetchGame(gameId);
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [gameId, game?.status, fetchGame]);

@@ -29,23 +29,19 @@ router.get('/:id', async (req: AuthenticatedRequest, res) => {
       return;
     }
 
-    // Get all scores
-    const { data: scores } = await supabase
-      .from('game_scores')
-      .select('*')
-      .eq('game_id', gameId);
-
-    // Get players info
-    const { data: lobbyPlayers } = await supabase
-      .from('lobby_players')
-      .select('player_id, turn_order, players(*)')
-      .eq('lobby_id', game.lobby_id)
-      .order('turn_order');
+    // Fetch scores and players in parallel
+    const [scoresResult, playersResult] = await Promise.all([
+      supabase.from('game_scores').select('*').eq('game_id', gameId),
+      supabase.from('lobby_players')
+        .select('player_id, turn_order, players(*)')
+        .eq('lobby_id', game.lobby_id)
+        .order('turn_order'),
+    ]);
 
     res.json({
       ...game,
-      scores: scores || [],
-      players: lobbyPlayers || [],
+      scores: scoresResult.data || [],
+      players: playersResult.data || [],
     });
   } catch (err: any) {
     console.error('[GET /api/game/:id]', err);
